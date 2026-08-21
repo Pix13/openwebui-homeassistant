@@ -74,6 +74,7 @@ class Tools:
         "garage_doors": "cover",
         "person": "person",
         "people": "person",
+        "persons": "person",
         "device_trackers": "device_tracker",
         "device_tracker": "device_tracker",
         "vacuums": "vacuum",
