@@ -5,9 +5,9 @@ author_url: https://github.com/Rhoshambo-sky
 git_url: https://github.com/Rhoshambo-sky/openwebui-homeassistant
 description: Connects to a Home Assistant instance to control and query smart home devices using their human-readable names.
 funding_url: https://github.com/open-webui
-version: 0.2.1
-required_open_webui_version: 0.5.0
-requirements: requests, pydantic
+version: 0.3.0
+required_open_webui_version: 0.11.0
+requirements: requests, pydantic>=2
 licence: MIT
 """
 
@@ -146,8 +146,37 @@ class Tools:
             "Content-Type": "application/json",
         })
 
-        # Verify the connection on startup to fail fast
-        self._verify_connection()
+        # Verify the connection on startup to fail fast.
+        # In Open-WebUI 0.11+ a tool instance must not crash just because a
+        # downstream service is momentarily unreachable at load time, so a
+        # failed probe is logged rather than raised.
+        try:
+            self._verify_connection()
+        except ConnectionError as e:
+            self.logger.warning(
+                "Home Assistant unreachable at startup (will retry on demand): %s", e
+            )
+
+    def _get_valve(self, name: str) -> Any:
+        """
+        Reads a configured valve value in a way that works regardless of how
+        Open-WebUI hands the configuration to the tool.
+
+        In current Open-WebUI (0.5+) ``self.valves`` is a Pydantic v2
+        ``BaseModel`` instance, which has no ``.get()`` method (unlike a dict).
+        This helper supports both that model and a plain dict so the tool keeps
+        working across the supported versions.
+
+        :param name: The valve field name, e.g. ``"HA_ALARM_CODE"``.
+        :return: The valve value, or ``None`` when it is unset.
+        """
+        try:
+            if isinstance(self.valves, dict):
+                return self.valves.get(name)
+            # Pydantic BaseModel (v1 and v2) attribute access.
+            return getattr(self.valves, name, None)
+        except (AttributeError, KeyError, TypeError):
+            return None
 
     def _verify_connection(self, __event_emitter__: Optional[Callable] = None):
         """Verifies the connection and authentication with Home Assistant on startup."""
@@ -865,7 +894,7 @@ class Tools:
             return f"Error: Invalid state '{state}'. Must be one of: {', '.join(valid_states)}."
 
         payload = {"entity_id": entity_id}
-        if alarm_code := self.valves.get("HA_ALARM_CODE"):
+        if alarm_code := self._get_valve("HA_ALARM_CODE"):
             payload["code"] = alarm_code
 
         error = self._call_service("alarm_control_panel", state, payload, device_name)
@@ -1228,7 +1257,7 @@ class Tools:
         :param text_to_print: The text content to be printed.
         :return: A user-facing confirmation or an error message.
         """
-        printer_service = self.valves.get("HA_PRINTER_NOTIFY_SERVICE")
+        printer_service = self._get_valve("HA_PRINTER_NOTIFY_SERVICE")
         if not printer_service:
             return "Error: The printer notify service has not been configured in the tool settings. Please set it up first."
 

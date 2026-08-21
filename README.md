@@ -3,7 +3,14 @@
 This tool connects OpenWebUI to a Home Assistant instance, allowing a Large Language Model (LLM) to control and query smart home devices using natural, human-readable language.
 
 **Author:** Rhoshambo
-**Version:** 0.2.1
+**Version:** 0.3.0
+
+## What's New in 0.3.0
+
+- **OpenWebUI 0.11+ Compatibility**: Declared support for Open-WebUI 0.11.x and later.
+- **Pydantic v2 Fixes**: The tool now reads its valves through a version-agnostic helper, fixing an `AttributeError` (`'Valves' object has no attribute 'get'`) that previously broke alarm control and printing on Pydantic v2, which Open-WebUI 0.11+ requires.
+- **Resilient Startup**: If Home Assistant is unreachable when the tool loads, the tool now logs a warning and keeps working (retrying on demand) instead of failing to register.
+- **Pinned Pydantic v2**: `requirements` now enforces `pydantic>=2`, matching the runtime bundled with Open-WebUI 0.11+.
 
 ## What's New in 0.2.1
 
